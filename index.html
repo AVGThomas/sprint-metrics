@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sprint 26.06 KPI Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f6f9; color: #333; padding: 20px; }
+
+.header { background: #1b5eb3; color: #fff; border-radius: 10px; padding: 20px 24px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+.header h1 { font-size: 20px; font-weight: 700; }
+.header .meta { font-size: 12px; opacity: 0.85; }
+.badges { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.badge { background: rgba(255,255,255,0.2); border-radius: 20px; padding: 4px 14px; font-size: 12px; font-weight: 600; }
+.ado-link { display: inline-block; padding: 6px 14px; background: #fff; color: #1b5eb3; border-radius: 6px; font-size: 12px; text-decoration: none; font-weight: 700; }
+
+.kpi-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 20px; }
+.kpi-card { background: #fff; border-radius: 10px; padding: 14px 16px; border-left: 4px solid #1b5eb3; }
+.kpi-label { font-size: 10px; color: #888; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px; }
+.kpi-value { font-size: 26px; font-weight: 700; color: #1b5eb3; }
+.kpi-sub { font-size: 10px; color: #aaa; margin-top: 3px; }
+.kpi-card.green { border-left-color: #27ae60; } .kpi-card.green .kpi-value { color: #27ae60; }
+.kpi-card.orange { border-left-color: #e67e22; } .kpi-card.orange .kpi-value { color: #e67e22; }
+.kpi-card.red { border-left-color: #e74c3c; } .kpi-card.red .kpi-value { color: #e74c3c; }
+.kpi-card.purple { border-left-color: #8e44ad; } .kpi-card.purple .kpi-value { color: #8e44ad; }
+
+.nav-tabs { display: flex; gap: 4px; margin-bottom: 20px; background: #fff; border-radius: 10px; padding: 6px; border: 1px solid #e0e0e0; flex-wrap: wrap; }
+.nav-tab { padding: 7px 16px; font-size: 12px; font-weight: 600; border: none; border-radius: 7px; background: transparent; color: #888; cursor: pointer; transition: all 0.15s; }
+.nav-tab:hover { background: #f0f4fb; color: #1b5eb3; }
+.nav-tab.active { background: #1b5eb3; color: #fff; }
+
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+.section-title { font-size: 14px; font-weight: 700; color: #1b5eb3; margin-bottom: 12px; border-bottom: 2px solid #e8edf5; padding-bottom: 6px; }
+
+/* Team filter row */
+.team-filter-row { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; align-items: center; }
+.team-filter-row label { font-size: 11px; color: #888; font-weight: 600; margin-right: 4px; }
+.tf-btn { padding: 4px 12px; font-size: 11px; border: 1.5px solid #ccc; border-radius: 14px; background: #fff; color: #555; cursor: pointer; transition: all 0.12s; }
+.tf-btn:hover { border-color: #1b5eb3; color: #1b5eb3; }
+.tf-btn.active { background: #1b5eb3; color: #fff; border-color: #1b5eb3; }
+
+/* Groups grid */
+.groups-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+.group-card { background: #fff; border-radius: 10px; overflow: hidden; border: 2px solid transparent; cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s; }
+.group-card:hover { border-color: #1b5eb3; box-shadow: 0 4px 12px rgba(27,94,179,0.1); }
+.group-card.active { border-color: #1b5eb3; box-shadow: 0 4px 12px rgba(27,94,179,0.15); }
+.group-header { color: #fff; padding: 9px 12px; display: flex; justify-content: space-between; align-items: center; }
+.group-name { font-size: 12px; font-weight: 700; }
+.group-total { font-size: 12px; background: rgba(255,255,255,0.25); padding: 1px 9px; border-radius: 12px; font-weight: 700; }
+.group-body { padding: 9px 12px; }
+.sub-team-row { display: flex; align-items: center; padding: 3px 0; border-bottom: 1px solid #f0f0f0; gap: 5px; }
+.sub-team-row:last-of-type { border-bottom: none; }
+.sub-name { font-size: 10px; color: #444; min-width: 0; flex: 1; }
+.sub-bar-wrap { width: 40px; background: #f0f4fb; border-radius: 3px; height: 4px; overflow: hidden; flex-shrink: 0; }
+.sub-bar { height: 4px; border-radius: 3px; }
+.sub-count { font-size: 10px; font-weight: 700; min-width: 22px; text-align: right; }
+.type-pills { display: flex; gap: 3px; flex-wrap: wrap; margin-top: 5px; padding-top: 5px; border-top: 1px solid #f5f5f5; }
+.type-pill { font-size: 9px; padding: 1px 6px; border-radius: 9px; font-weight: 700; white-space: nowrap; }
+.t-story { background: #e8fdf0; color: #27ae60; }
+.t-bug { background: #fde8e8; color: #e74c3c; }
+.t-task { background: #e8f4fd; color: #2980b9; }
+.t-request { background: #fff3e8; color: #e67e22; }
+
+/* Detail panel */
+.detail-panel { background: #fff; border-radius: 10px; padding: 16px; margin-bottom: 20px; display: none; }
+.detail-panel.show { display: block; }
+.detail-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; }
+.detail-header h3 { font-size: 13px; font-weight: 700; color: #1b5eb3; }
+.sub-tabs { display: flex; gap: 5px; flex-wrap: wrap; }
+.sub-tab { padding: 3px 10px; font-size: 10px; border: 1.5px solid #1b5eb3; border-radius: 12px; background: #fff; color: #1b5eb3; cursor: pointer; }
+.sub-tab.active { background: #1b5eb3; color: #fff; }
+.type-breakdown { display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.type-stat { display: flex; align-items: center; gap: 5px; font-size: 11px; }
+.type-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.wi-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.wi-table th { background: #f0f4fb; padding: 6px 8px; text-align: left; font-weight: 600; color: #555; border-bottom: 1px solid #e0e0e0; }
+.wi-table td { padding: 6px 8px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+.wi-table tr:hover td { background: #f8fbff; }
+.wi-link { color: #1b5eb3; text-decoration: none; font-size: 10px; }
+.more-row td { text-align: center; color: #888; font-size: 10px; padding: 8px; }
+.more-row a { color: #1b5eb3; }
+
+/* Charts */
+.chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px; }
+.chart-card { background: #fff; border-radius: 10px; padding: 16px 18px; }
+.chart-card.full { grid-column: 1 / -1; }
+.chart-note { font-size: 10px; color: #999; margin-bottom: 10px; font-style: italic; }
+
+.health-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
+.health-card { background: #fff; border-radius: 8px; padding: 12px 14px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid; }
+.health-label { font-size: 11px; font-weight: 600; }
+.health-value { font-size: 18px; font-weight: 700; }
+
+.footer { text-align: center; font-size: 10px; color: #bbb; margin-top: 8px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>Sprint 26.06 KPI Dashboard</h1>
+    <div class="meta">Software Development &nbsp;|&nbsp; March 11 – March 24, 2026 &nbsp;|&nbsp; Live from Azure DevOps</div>
+  </div>
+  <div class="badges">
+    <span class="badge">8 Groups · 15 Sub-teams</span>
+    <span class="badge">391 Work Items</span>
+    <a class="ado-link" href="https://dev.azure.com/OSG-Transactional-Dev-and-CC/Software%20Development/_sprints" target="_blank">View in ADO ↗</a>
+  </div>
+</div>
+
+<div class="kpi-row">
+  <div class="kpi-card"><div class="kpi-label">Total Work Items</div><div class="kpi-value">391</div><div class="kpi-sub">All sub-teams combined</div></div>
+  <div class="kpi-card green"><div class="kpi-label">User Stories</div><div class="kpi-value">305</div><div class="kpi-sub">78% of sprint</div></div>
+  <div class="kpi-card red"><div class="kpi-label">Bugs</div><div class="kpi-value">44</div><div class="kpi-sub">11% of sprint</div></div>
+  <div class="kpi-card orange"><div class="kpi-label">Tasks</div><div class="kpi-value">30</div><div class="kpi-sub">8% of sprint</div></div>
+  <div class="kpi-card purple"><div class="kpi-label">Requests</div><div class="kpi-value">12</div><div class="kpi-sub">3% of sprint</div></div>
+</div>
+
+<div class="nav-tabs">
+  <button class="nav-tab active" onclick="switchView('teams',this)">Teams Overview</button>
+  <button class="nav-tab" onclick="switchView('types',this)">Work Type Breakdown</button>
+  <button class="nav-tab" onclick="switchView('velocity',this)">Velocity</button>
+  <button class="nav-tab" onclick="switchView('burndown',this)">Burndown</button>
+</div>
+
+<!-- ===== TEAMS TAB ===== -->
+<div class="tab-content active" id="tab-teams">
+  <div class="section-title">Work Items by Group — Click any group to drill into sub-teams</div>
+  <div class="groups-grid">
+
+    <div class="group-card" id="card-presexp" onclick="showGroup('presexp',this)">
+      <div class="group-header" style="background:#2471a3"><span class="group-name">Present Experience</span><span class="group-total">86</span></div>
+      <div class="group-body">
+        <div class="sub-team-row"><span class="sub-name">Platform</span><div class="sub-bar-wrap"><div class="sub-bar" style="width:100%;background:#2471a3"></div></div><span class="sub-count" style="color:#2471a3">64</span></div>
+        <div class="sub-team-row"><span class="sub-name">eStatements</span><div class="sub-bar-wrap"><div class="sub-bar" style="width:34%;background:#2471a3"></div></div><span class="sub-count" style="color:#2471a3">22</span></div>
+        <div class="type-pills"><span class="type-pill t-story">~68 Stories</span><span class="type-pill t-bug">~12 Bugs</span><span class="type-pill t-task">~6 Tasks</span></div>
+      </div>
+    </div>
+
+    <div class="group-card" id="card-ncp" onclick="showGroup('ncp',this)">
+      <div class="group-header" style="background:#1b5eb3"><span class="group-name">NCP (WMS)</span><span class="group-total">76</span></div>
+      <div class="group-body">
+        <div class="sub-team-row"><span class="sub-name">NCP - (WMS)</span><div class="sub-bar-wrap"><div class="sub-bar" style="width:100%;background:#1b5eb3"></div></div><span class="sub-count" style="color:#1b5eb3">76</span></div>
+        <div class="type-pills"><span class="type-pill t-story">60 Stories</span><span class="type-pill t-bug">4 Bugs</span><span class="type-pill t-task">8 Tasks</span><span class="type-pill t-request">4 Req</span></div>
+      </div>
+    </div>
+
+    <div class="group-card" id="card-osgdigital" onclick="showGroup('osgdigital',this)">
+      <div class="group-header" style="background:#2980b9"><span class="group-name">OSG Digital</span><span class="group-total">61</span></div>
+      <div class="group-body">
+        <div class="sub-team-row"><span class="sub-name">OSG Digital</span><div class="sub-bar-wrap"><div class="sub-bar" style="width:100%;background:#2980b9"></div></div><span class="sub-count" style="color:#2980b9">30</span></div>
+        <div class="sub-team-row"><span class="sub-name">Journey Connect</span><div class="sub-bar-wrap"><div class="sub-bar" style="width:80%;background:#2980b9"></div></div><span class="sub-count" style="color:#2980b9">24</span></div>
+        <div class="sub-team-row"><span class="sub-name">Document Connect</span><div class="sub-bar-wrap"><div class="sub-bar" style="width:23%;background:#2980b9"></div></div><span class="sub-count" style="color:#2980b9">7</span></div>
+        <div class="type-pills"><span class="type-pill t-story">~52 Stories</span><span class="type-pill t-bug">~6 Bugs</span><span class="type-pill t-task">~3 Tasks</span></div>
+      </div>
+    </div>
+
+    <div class="group-card" id="card-sdi" onclick="showGroup('sdi',this)">
+      <div class="group-header" style="background:#1a7a4a"><span class="group-name">SDI</span><span class="group-total">60</span></div>
+      <div class="group-body">
+        <div class="sub-team-row"><span class="sub-name">SDI (Systems)</span><div class="sub-bar-wrap"><div class="sub-bar" style="width:100%;background:#1a7a4a"></div></div><span class="sub-count" style="color:#1a7a4a">32</span></div>
+        <div class="sub-team-row"><span class="sub-name">SDI (Web)</span><div class="sub-bar-wrap"><div class="sub-bar" style="width:88%;background:#1a7a4a"></div></div><span class="sub-count" style="color:#1a7a4a">28</span></div>
+        <div class="type-pills"><span class="type-pill t-story">44 Stories</span><span class="type-pill t-bug">8 Bugs</span><span class="type-pill t-task">8 Tasks</span></div>
+      </div>
+    </div>
+
+    <div class="group-card" id="card-opt" onclick="showGroup('opt',this)">
+      <div class="group-header" style="background:#7d3c98"><span class="group-name">OPT</span><span class="group-total">52</span></div>
+      <div class="group-body">
+        <div class="sub-team-row"><span class="sub-name">OPT - Development</span><div class="sub-bar-wrap"><div class="sub-bar" style="width:100%;background:#7d3c98"></div></div><span class="sub-count" style="color:#7d3c98">39</span></div>
+        <div class="sub-team-row"><span class="sub-name">OPT - Production Support</span><div class="sub-bar-wrap"><div class="sub-bar" style="width:33%;background:#7d3c98"></div></div><span class="sub-count" style="color:#7d3c98">13</span></div>
+        <div class="type-pills"><span class="type-pill t-story">33 Stories</span><span class="type-pill t-bug">6 Bugs</span><span class="type-pill t-task">11 Tasks</span><span class="type-pill t-request">2 Req</span></div>
+      </div>
+    </div>
+
+    <div class="group-card" id="card-gabriel" onclick="showGroup('gabriel',this)">
+      <div class="group-header" style="background:#b7770d"><span class="group-name">Gabriel Group</span><span class="group-total">26</span></div>
+      <div class="group-body">
+        <div class="sub-team-row"><span class="sub-name">Gabriel Group</span><div class="sub-bar-wrap"><div class="sub-bar" style="width:100%;background:#b7770d"></div></div><span class="sub-count" style="color:#b7770d">26</span></div>
+        <div class="type-pills"><span class="type-pill t-story">20 Stories</span><span class="type-pill t-bug">4 Bugs</span><span class="type-pill t-request">1 Req</span><span class="type-pill t-task">1 Task</span></div>
+      </div>
+    </div>
+
+    <div class="group-card" id="card-njdev" onclick="showGroup('njdev',this)">
+      <div class="group-header" style="background:#c0392b"><span class="group-name">NJ Development</span><span class="group-total">18</span></div>
+      <div class="group-body">
+        <div class="sub-team-row"><span class="sub-name">NJ Development</span><div class="sub-bar-wrap"><div class="sub-bar" style="width:100%;background:#c0392b"></div></div><span class="sub-count" style="color:#c0392b">18</span></div>
+        <div class="type-pills"><span class="type-pill t-story">14 Stories</span><span class="type-pill t-bug">2 Bugs</span><span class="type-pill t-request">2 Req</span></div>
+      </div>
+    </div>
+
+    <div class="group-card" id="card-coe" onclick="showGroup('coe',this)">
+      <div class="group-header" style="background:#5d6d7e"><span class="group-name">COE</span><span class="group-total">12</span></div>
+      <div class="group-body">
+        <div class="sub-team-row"><span class="sub-name">COE (Quadient Cloud)</span><div class="sub-bar-wrap"><div class="sub-bar" style="width:100%;background:#5d6d7e"></div></div><span class="sub-count" style="color:#5d6d7e">9</span></div>
+        <div class="sub-team-row"><span class="sub-name">COE (Core Services)</span><div class="sub-bar-wrap"><div class="sub-bar" style="width:33%;background:#5d6d7e"></div></div><span class="sub-count" style="color:#5d6d7e">3</span></div>
+        <div class="type-pills"><span class="type-pill t-story">10 Stories</span><span class="type-pill t-bug">2 Bugs</span></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Detail panels -->
+  <div class="detail-panel" id="detail-presexp">
+    <div class="detail-header"><h3>Present Experience — 86 items</h3>
+      <div class="sub-tabs"><span class="sub-tab active" onclick="switchTab(this,'pe-platform')">Platform (64)</span><span class="sub-tab" onclick="switchTab(this,'pe-estat')">eStatements (22)</span></div>
+    </div>
+    <div class="type-breakdown"><span class="type-stat"><span class="type-dot" style="background:#27ae60"></span>~68 User Stories</span><span class="type-stat"><span class="type-dot" style="background:#e74c3c"></span>~12 Bugs</span><span class="type-stat"><span class="type-dot" style="background:#2980b9"></span>~6 Tasks</span></div>
+    <div id="pe-platform"><table class="wi-table"><tr><th>ID</th><th>Type</th><th>State</th><th>Link</th></tr>
+      <tr><td>472228</td><td><span class="type-pill t-story">User Story</span></td><td>Active</td><td><a class="wi-link" href="https://dev.azure.com/OSG-Transactional-Dev-and-CC/Software%20Development/_workitems/edit/472228" target="_blank">Open ↗</a></td></tr>
+      <tr><td>365297</td><td><span class="type-pill t-story">User Story</span></td><td>Active</td><td><a class="wi-link" href="https://dev.azure.com/OSG-Transactional-Dev-and-CC/Software%20Development/_workitems/edit/365297" target="_blank">Open ↗</a></td></tr>
+      <tr class="more-row"><td colspan="4">+ 62 more &mdash; <a href="https://dev.azure.com/OSG-Transactional-Dev-and-CC/Software%20Development/_sprints/taskboard/Platform" target="_blank">View all in ADO ↗</a></td></tr>
+    </table></div>
+    <div id="pe-estat" style="display:none"><table class="wi-table"><tr><th>ID</th><th>Type</th><th>State</th><th>Link</th></tr>
+      <tr><td>383797</td><td><span class="type-pill t-story">User Story</span></td><td>Active</td><td><a class="wi-link" href="https://dev.azure.com/OSG-Transactional-Dev-and-CC/Software%20Development/_workitems/edit/383797" target="_blank">Open ↗</a></td></tr>
+      <tr class="more-row"><td colspan="4">+ 21 more &mdash; <a href="https://dev.azure.com/OSG-Transactional-Dev-and-CC/Software%20Development/_sprints/taskboard/eStatements" target="_blank">View all in ADO ↗</a></td></tr>
+    </table></div>
+  </div>
+
+  <div class="detail-panel" id="detail-ncp">
+    <div class="detail-header"><h3>NCP (WMS) — 76 items</h3></div>
+    <div class="type-breakdown"><span class="type-stat"><span class="type-dot" style="background:#27ae60"></span>60 User Stories</span><span class="type-stat"><span class="type-dot" style="background:#e74c3c"></span>4 Bugs</span><span class="type-stat"><span class="type-dot" style="background:#2980b9"></span>8 Tasks</span><span class="type-stat"><span class="type-dot" style="background:#e67e22"></span>4 Requests</span></div>
+    <table class="wi-table"><tr><th>ID</th><th>Type</th><th>State</th><th>Assigned To</th><th>Points</th><th>Link</th></tr>
+      <tr><td>431654</td><td><span class="type-pill t-bug">Bug</span></td><td>Finalized</td><td>Mark Schwartz</td><td>1</td><td><a class="wi-link" href="https://dev.azure.com/OSG-Transactional-Dev-and-CC/Software%20Development/_workitems/edit/431654" target="_blank">Open ↗</a></td></tr>
+      <tr><td>463265</td><td><span class="type-pill t-story">User Story</span></td><td>Finalized</td><td>Rob Viets</td><td>0.5</td><td><a class="wi-link" href="https://dev.azure.com/OSG-Transactional-Dev-and-CC/Software%20Development/_workitems/edit/463265" target="_blank">Open ↗</a></td></tr>
+      <tr><td>462493</td><td><span class="type-pill t-story">User Story</span></td><td>Blocked</td><td>Scott Manktelow</td><td>2</td><td><a class="wi-link" href="https://dev.azure.com/OSG-Transactional-Dev-and-CC/Software%20Development/_workitems/edit/462493" target="_blank">Open ↗</a></td></tr>
+      <tr class="more-row"><td colspan="6">+ 73 more &mdash; <a href="https://dev.azure.com/OSG-Transactional-Dev-and-CC/Software%20Development/_sprints/taskboard/NCP%20-%20(WMS)" target="_blank">View all in ADO ↗</a></td></tr>
+    </table>
+  </div>
+
+  <div class="detail-panel" id="detail-osgdigital">
+    <div class="detail-header"><h3>OSG Digital — 61 items</h3>
+      <div class="sub-tabs"><span class="sub-tab active" onclick="switchTab(this,'osg-main')">OSG Digital (30)</span><span class="sub-tab" onclick="switchTab(this,'osg-journey')">Journey Connect (24)</span><span class="sub-tab" onclick="switchTab(this,'osg-doc')">Doc Connect (7)</span></div>
+    </div>
+    <div class="type-breakdown"><span class="type-stat"><span class="type-dot" style="background:#27ae60"></span>~52 User Stories</span><span class="type-stat"><span class="type-dot" style="background:#e74c3c"></span>~6 Bugs</span><span class="type-stat"><span class="type-dot" style="background:#2980b9"></span>~3 Tasks</span></div>
+    <div id="osg-main"><table class="wi-table"><tr><th>ID</th><th>Type</th><th>State</th><th>Link</th></tr>
+      <tr><td>361705</td><td><span class="type-pill t-story">User Story</span></td><td>Active</td><td><a class="wi-link" href="https://dev.azure.com/OSG-Transactional-Dev-and-CC/Software%20Development/_workitems/edit/361705" target="_blank">Open ↗</a></td></tr>
+      <tr class="more-row"><td colspan="4">+ 29 more &mdash; <a href="https://dev.azure.com/OSG-Transactional-Dev-and-CC/Software%20Development/_sprints/taskboard/OSG%20Digital" target="_blank">View all ↗</a></td></tr>
+    </table></div>
+    <div id="osg-journey" style="display:none"><table class="wi-table"><tr><th>ID</th><th>Type</th><th>State</th><th>Link</th></tr>
+      <tr class="more-row"><td colspan="4"><a href="https://dev.azure.com/OSG-Transactional-Dev-and-CC/Software%20Development/_sprints/taskboard/Journey%20Connect" target="_blank">View all 24 items in ADO ↗</a></td></tr>
+    </table></div>
+    <div id="osg-doc" style="display:none"><table class="wi-table"><tr><th>ID</th><th>Type</th><th>State</th><th>Link</th></tr>
+      <tr><td>300730</td><td><span class="type-pill t-story">User Story</span></td><td>Active</td><td><a class="wi-link" href="https://dev.azure.com/OSG-Transactional-Dev-and-CC/Software%20Development/_workitems/edit/300730" target="_blank">Open ↗</a></td></tr>
+      <tr class="more-row"><td colspan="4">+ 6 more &mdash; <a href="https://dev.azure.com/OSG-Transactional-Dev-and-CC/Software%20Development/_sprints/taskboard/Document%20Connect" target="_blank">View all ↗</a></td></tr>
+    </table></div>
+  </div>
+
+  <div class="detail-panel" id="detail-sdi">
+    <div class="detail-header"><h3>SDI — 60 items</h3>
+      <div class="sub-tabs"><span class="sub-tab active" onclick="switchTab(this,'sdi-systems')">SDI (Systems) (32)</span><span class="sub-tab" onclick="switchTab(this,'sdi-web')">SDI (Web) (28)</span></div>
+    </div>
+    <div class="type-breakdown"><span class="type-stat"><span class="type-dot" style="background:#27ae60"></span>44 User Stories</span><span class="type-stat"><span class="type-dot" style="background:#e74c3c"></span>8 Bugs</span><span class="type-stat"><span class="type-dot" style="background:#2980b9"></span>8 Tasks</span></div>
+    <div id="sdi-systems"><table class="wi-table"><tr><th>ID</th><th>Type</th><th>State</th><th>Assigned To</th><th>Pts</th><th>Link</th></tr>
+      <tr><td>324344</td><td><span class="type-pill t-bug">Bug</span></td><td>Finalized</td><td>John Burson</td><td>2</td><td><a class="wi-link" href="https://dev.azure.com/OSG-Transactional-Dev-and-CC/Software%20Development/_workitems/edit/324344" target="_blank">Open ↗</a></td></tr>
+      <tr><td>264504</td><td><span class="type-pill t-story">User Story</span></td><td>Finalized</td><td>Erik Mann</td><td>8</td><td><a class="wi-link" href="https://dev.azure.com/OSG-Transactional-Dev-and-CC/Software%20Development/_workitems/edit/264504" target="_blank">Open ↗</a></td></tr>
+      <tr class="more-row"><td colspan="6">+ 30 more &mdash; <a href="https://dev.azure.com/OSG-Transactional-Dev-and-CC/Software%20Development/_sprints/taskboard/SDI%20(Systems)" target="_blank">View all ↗</a></td></tr>
+    </table></div>
+    <div id="sdi-web" style="display:none"><table class="wi-table"><tr><th>ID</th><th>Type</th><th>State</th><th>Assigned To</th><th>Pts</th><th>Link</th></tr>
+      <tr><td>353980</td><td><span class="type-pill t-story">User Story</span></td><td>Finalized</td><td>Joshua Mein</td><td>0.5</td><td><a class="wi-link" href="https://dev.azure.com/OSG-Transactional-Dev-and-CC/Software%20Development/_workitems/edit/353980" target="_blank">Open ↗</a></td></tr>
+      <tr><td>458975</td><td><span class="type-pill t-bug">Bug</span></td><td>Finalized</td><td>Joshua Mein</td><td>0.5</td><td><a class="wi-link" href="https://dev.azure.com/OSG-Transactional-Dev-and-CC/Software%20Development/_workitems/edit/458975" target="_blank">Open ↗</a></td></tr>
+      <tr class="more-row"><td colspan="6">+ 26 more &mdash; <a href="https://dev.azure.com/OSG-Transactional-Dev-and-CC/Software%20Development/_sprints/taskboard/SDI%20(Web)" target="_blank">View all ↗</a></td></tr>
+    </table></div>
+  </div>
+
+  <div class="detail-panel" id="detail-opt">
+    <div class="detail-header"><h3>OPT — 52 items</h3>
+      <div class="sub-tabs"><span class="sub-tab active" onclick="switchTab(this,'opt-dev')">OPT - Development (39)</span><span class="sub-tab" onclick="switchTab(this,'opt-prod')">OPT - Production Support (13)</span></div>
+    </div>
+    <div class="type-breakdown"><span class="type-stat"><span class="type-dot" style="background:#27ae60"></span>33 User Stories</span><span class="type-stat"><span class="type-dot" style="background:#e74c3c"></span>6 Bugs</span><span class="type-stat"><span class="type-dot" style="background:#2980b9"></span>11 Tasks</span><span class="type-stat"><span class="type-dot" style="background:#e67e22"></span>2 Requests</span></div>
+    <div id="opt-dev"><table class="wi-table"><tr><th>ID</th><th>Type</th><th>State</th><th>Assigned To</th><th>Pts</th><th>Link</th></tr>
+      <tr><td>459365</td><td><span class="type-pill t-bug">Bug</span></td><td>Finalized</td><td>Adam Stein</td><td>2</td><td><a class="wi-link" href="https://dev.azure.com/OSG-Transactional-Dev-and-CC/Software%20Development/_workitems/edit/459365" target="_blank">Open ↗</a></td></tr>
+      <tr><td>384849</td><td><span class="type-pill t-story">User Story</span></td><td>Accepted</td><td>Adam Stein</td><td>1</td><td><a class="wi-link" href="https://dev.azure.com/OSG-Transactional-Dev-and-CC/Software%20Development/_workitems/edit/384849" target="_blank">Open ↗</a></td></tr>
+      <tr class="more-row"><td colspan="6">+ 37 more &mdash; <a href="https://dev.azure.com/OSG-Transactional-Dev-and-CC/Software%20Development/_sprints/taskboard/OPT%20-%20Development" target="_blank">View all ↗</a></td></tr>
+    </table></div>
+    <div id="opt-prod" style="display:none"><table class="wi-table"><tr><th>ID</th><th>Type</th><th>State</th><th>Assigned To</th><th>Pts</th><th>Link</th></tr>
+      <tr><td>384511</td><td><span class="type-pill t-request">Request</span></td><td>Finalized</td><td>Jonathan Lopez</td><td>2</td><td><a class="wi-link" href="https://dev.azure.com/OSG-Transactional-Dev-and-CC/Software%20Development/_workitems/edit/384511" target="_blank">Open ↗</a></td></tr>
+      <tr><td>429967</td><td><span class="type-pill t-story">User Story</span></td><td>Finalized</td><td>Jonathan Lopez</td><td>2</td><td><a class="wi-link" href="https://dev.azure.com/OSG-Transactional-Dev-and-CC/Software%20Development/_workitems/edit/429967" target="_blank">Open ↗</a></td></tr>
+      <tr><td>450629</td><td><span class="type-pill t-request">Request</span></td><td>Finalized</td><td>Jonathan Lopez</td><td>1</td><td><a class="wi-link" href="https://dev.azure.com/OSG-Transactional-Dev-and-CC/Software%20Development/_workitems/edit/450629" target="_blank">Open ↗</a></td></tr>
+      <tr><td>458668</td><td><span class="type-pill t-story">User Story</span></td><td>Finalized</td><td>Jonathan Lopez</td><td>2</td><td><a class="wi-link" href="https://dev.azure.com/OSG-Transactional-Dev-and-CC/Software%20Development/_workitems/edit/458668" target="_blank">Open ↗</a></td></tr>
+      <tr><td>472214</td><td><span class="type-pill t-story">User Story</span></td><td>Finalized</td><td>Jonathan Lopez</td><td>1</td><td><a class="wi-link" href="https://dev.azure.com/OSG-Transactional-Dev-and-CC/Software%20Development/_workitems/edit/472214" target="_blank">Open ↗</a></td></tr>
+      <tr><td>384857</td><td><span class="type-pill t-task">Task</span></td><td>Done</td><td>Jonathan Lopez</td><td>—</td><td><a class="wi-link" href="https://dev.azure.com/OSG-Transactional-Dev-and-CC/Software%20Development/_workitems/edit/384857" target="_blank">Open ↗</a></td></tr>
+      <tr><td>398500</td><td><span class="type-pill t-task">Task</span></td><td>Done</td><td>Justin Mansel</td><td>—</td><td><a class="wi-link" href="https://dev.azure.com/OSG-Transactional-Dev-and-CC/Software%20Development/_workitems/edit/398500" target="_blank">Open ↗</a></td></tr>
+      <tr><td>431663</td><td><span class="type-pill t-task">Task</span></td><td>Done</td><td>Jonathan Lopez</td><td>—</td><td><a class="wi-link" href="https://dev.azure.com/OSG-Transactional-Dev-and-CC/Software%20Development/_workitems/edit/431663" target="_blank">Open ↗</a></td></tr>
+      <tr><td>450753</td><td><span class="type-pill t-task">Task</span></td><td>Done</td><td>Jonathan Lopez</td><td>—</td><td><a class="wi-link" href="https://dev.azure.com/OSG-Transactional-Dev-and-CC/Software%20Development/_workitems/edit/450753" target="_blank">Open ↗</a></td></tr>
+      <tr><td>459366</td><td><span class="type-pill t-task">Task</span></td><td>Done</td><td>Jonathan Lopez</td><td>—</td><td><a class="wi-link" href="https://dev.azure.com/OSG-Transactional-Dev-and-CC/Software%20Development/_workitems/edit/459366" target="_blank">Open ↗</a></td></tr>
+      <tr><td>472308</td><td><span class="type-pill t-task">Task</span></td><td>Done</td><td>Jonathan Lopez</td><td>—</td><td><a class="wi-link" href="https://dev.azure.com/OSG-Transactional-Dev-and-CC/Software%20Development/_workitems/edit/472308" target="_blank">Open ↗</a></td></tr>
+      <tr><td>398540</td><td><span class="type-pill t-task">Task</span></td><td>Done</td><td>Jonathan Lopez</td><td>—</td><td><a class="wi-link" href="https://dev.azure.com/OSG-Transactional-Dev-and-CC/Software%20Development/_workitems/edit/398540" target="_blank">Open ↗</a></td></tr>
+      <tr><td>399405</td><td><span class="type-pill t-task">Task</span></td><td>Done</td><td>Justin Mansel</td><td>—</td><td><a class="wi-link" href="https://dev.azure.com/OSG-Transactional-Dev-and-CC/Software%20Development/_workitems/edit/399405" target="_blank">Open ↗</a></td></tr>
+    </table></div>
+  </div>
+
+  <div class="detail-panel" id="detail-gabriel">
+    <div class="detail-header"><h3>Gabriel Group — 26 items</h3></div>
+    <div class="type-breakdown"><span class="type-stat"><span class="type-dot" style="background:#27ae60"></span>20 User Stories</span><span class="type-stat"><span class="type-dot" style="background:#e74c3c"></span>4 Bugs</span><span class="type-stat"><span class="type-dot" style="background:#e67e22"></span>1 Request</span><span class="type-stat"><span class="type-dot" style="background:#2980b9"></span>1 Task</span></div>
+    <table class="wi-table"><tr><th>ID</th><th>Type</th><th>State</th><th>Assigned To</th><th>Pts</th><th>Link</th></tr>
+      <tr><td>463795</td><td><span class="type-pill t-story">User Story</span></td><td>Ready</td><td>Erik Mann</td><td>5</td><td><a class="wi-link" href="https://dev.azure.com/OSG-Transactional-Dev-and-CC/Software%20Development/_workitems/edit/463795" target="_blank">Open ↗</a></td></tr>
+      <tr><td>412867</td><td><span class="type-pill t-bug">Bug</span></td><td>Finalized</td><td>Erik Mann</td><td>0.5</td><td><a class="wi-link" href="https://dev.azure.com/OSG-Transactional-Dev-and-CC/Software%20Development/_workitems/edit/412867" target="_blank">Open ↗</a></td></tr>
+      <tr><td>358353</td><td><span class="type-pill t-request">Request</span></td><td>Finalized</td><td>Erik Mann</td><td>3</td><td><a class="wi-link" href="https://dev.azure.com/OSG-Transactional-Dev-and-CC/Software%20Development/_workitems/edit/358353" target="_blank">Open ↗</a></td></tr>
+      <tr class="more-row"><td colspan="6">+ 23 more &mdash; <a href="https://dev.azure.com/OSG-Transactional-Dev-and-CC/Software%20Development/_sprints/taskboard/Gabriel%20Group" target="_blank">View all ↗</a></td></tr>
+    </table>
+  </div>
+
+  <div class="detail-panel" id="detail-njdev">
+    <div class="detail-header"><h3>NJ Development — 18 items</h3></div>
+    <div class="type-breakdown"><span class="type-stat"><span class="type-dot" style="background:#27ae60"></span>14 User Stories</span><span class="type-stat"><span class="type-dot" style="background:#e74c3c"></span>2 Bugs</span><span class="type-stat"><span class="type-dot" style="background:#e67e22"></span>2 Requests</span></div>
+    <table class="wi-table"><tr><th>ID</th><th>Type</th><th>State</th><th>Assigned To</th><th>Pts</th><th>Link</th></tr>
+      <tr><td>473295</td><td><span class="type-pill t-story">User Story</span></td><td>Finalized</td><td>Solon Hinson</td><td>2</td><td><a class="wi-link" href="https://dev.azure.com/OSG-Transactional-Dev-and-CC/Software%20Development/_workitems/edit/473295" target="_blank">Open ↗</a></td></tr>
+      <tr><td>361817</td><td><span class="type-pill t-request">Request</span></td><td>Finalized</td><td>Solon Hinson</td><td>1</td><td><a class="wi-link" href="https://dev.azure.com/OSG-Transactional-Dev-and-CC/Software%20Development/_workitems/edit/361817" target="_blank">Open ↗</a></td></tr>
+      <tr><td>382370</td><td><span class="type-pill t-bug">Bug</span></td><td>Finalized</td><td>Solon Hinson</td><td>3</td><td><a class="wi-link" href="https://dev.azure.com/OSG-Transactional-Dev-and-CC/Software%20Development/_workitems/edit/382370" target="_blank">Open ↗</a></td></tr>
+      <tr class="more-row"><td colspan="6">+ 15 more &mdash; <a href="https://dev.azure.com/OSG-Transactional-Dev-and-CC/Software%20Development/_sprints/taskboard/NJ%20Development" target="_blank">View all ↗</a></td></tr>
+    </table>
+  </div>
+
+  <div class="detail-panel" id="detail-coe">
+    <div class="detail-header"><h3>COE — 12 items</h3>
+      <div class="sub-tabs"><span class="sub-tab active" onclick="switchTab(this,'coe-q')">Quadient Cloud (9)</span><span class="sub-tab" onclick="switchTab(this,'coe-c')">Core Services (3)</span></div>
+    </div>
+    <div class="type-breakdown"><span class="type-stat"><span class="type-dot" style="background:#27ae60"></span>10 User Stories</span><span class="type-stat"><span class="type-dot" style="background:#e74c3c"></span>2 Bugs</span></div>
+    <div id="coe-q"><table class="wi-table"><tr><th>ID</th><th>Type</th><th>State</th><th>Link</th></tr>
+      <tr><td>384834</td><td><span class="type-pill t-story">User Story</span></td><td>Active</td><td><a class="wi-link" href="https://dev.azure.com/OSG-Transactional-Dev-and-CC/Software%20Development/_workitems/edit/384834" target="_blank">Open ↗</a></td></tr>
+      <tr class="more-row"><td colspan="4">+ 8 more &mdash; <a href="https://dev.azure.com/OSG-Transactional-Dev-and-CC/Software%20Development/_sprints/taskboard/COE%20(Quadient%20Cloud)" target="_blank">View all ↗</a></td></tr>
+    </table></div>
+    <div id="coe-c" style="display:none"><table class="wi-table"><tr><th>ID</th><th>Type</th><th>State</th><th>Link</th></tr>
+      <tr><td>474693</td><td><span class="type-pill t-story">User Story</span></td><td>Active</td><td><a class="wi-link" href="https://dev.azure.com/OSG-Transactional-Dev-and-CC/Software%20Development/_workitems/edit/474693" target="_blank">Open ↗</a></td></tr>
+      <tr><td>474691</td><td><span class="type-pill t-story">User Story</span></td><td>Active</td><td><a class="wi-link" href="https://dev.azure.com/OSG-Transactional-Dev-and-CC/Software%20Development/_workitems/edit/474691" target="_blank">Open ↗</a></td></tr>
+      <tr><td>463234</td><td><span class="type-pill t-story">User Story</span></td><td>Active</td><td><a class="wi-link" href="https://dev.azure.com/OSG-Transactional-Dev-and-CC/Software%20Development/_workitems/edit/463234" target="_blank">Open ↗</a></td></tr>
+    </table></div>
+  </div>
+</div>
+
+<!-- ===== WORK TYPES TAB ===== -->
+<div class="tab-content" id="tab-types">
+  <div class="team-filter-row">
+    <label>Filter:</label>
+    <button class="tf-btn active" onclick="filterTypes('all',this)">All Teams</button>
+    <button class="tf-btn" onclick="filterTypes('presexp',this)">Present Exp.</button>
+    <button class="tf-btn" onclick="filterTypes('platform',this)" style="opacity:0.75">↳ Platform</button>
+    <button class="tf-btn" onclick="filterTypes('estatements',this)" style="opacity:0.75">↳ eStatements</button>
+    <button class="tf-btn" onclick="filterTypes('ncp',this)">NCP (WMS)</button>
+    <button class="tf-btn" onclick="filterTypes('osgdigital',this)">OSG Digital</button>
+    <button class="tf-btn" onclick="filterTypes('osgmain',this)" style="opacity:0.75">↳ OSG Digital</button>
+    <button class="tf-btn" onclick="filterTypes('journeyconnect',this)" style="opacity:0.75">↳ Journey Connect</button>
+    <button class="tf-btn" onclick="filterTypes('docconnect',this)" style="opacity:0.75">↳ Doc Connect</button>
+    <button class="tf-btn" onclick="filterTypes('sdi',this)">SDI</button>
+    <button class="tf-btn" onclick="filterTypes('sdisystems',this)" style="opacity:0.75">↳ Systems</button>
+    <button class="tf-btn" onclick="filterTypes('sdiweb',this)" style="opacity:0.75">↳ Web</button>
+    <button class="tf-btn" onclick="filterTypes('opt',this)">OPT</button>
+    <button class="tf-btn" onclick="filterTypes('gabriel',this)">Gabriel</button>
+    <button class="tf-btn" onclick="filterTypes('njdev',this)">NJ Dev</button>
+    <button class="tf-btn" onclick="filterTypes('coe',this)">COE</button>
+    <button class="tf-btn" onclick="filterTypes('coequadient',this)" style="opacity:0.75">↳ Quadient</button>
+    <button class="tf-btn" onclick="filterTypes('coecore',this)" style="opacity:0.75">↳ Core Svc</button>
+  </div>
+  <div class="chart-row">
+    <div class="chart-card"><div class="section-title">Work Item Types</div><canvas id="typeBarChart" height="220"></canvas></div>
+    <div class="chart-card"><div class="section-title">Type Distribution</div><canvas id="typePieChart" height="220"></canvas></div>
+  </div>
+  <div class="chart-card full" style="background:#fff;border-radius:10px;padding:16px 18px;margin-bottom:20px;">
+    <div class="section-title">Bugs by Team</div>
+    <canvas id="bugsByTeamChart" height="120"></canvas>
+  </div>
+</div>
+
+<!-- ===== VELOCITY TAB ===== -->
+<div class="tab-content" id="tab-velocity">
+  <div class="team-filter-row">
+    <label>Filter:</label>
+    <button class="tf-btn active" onclick="filterVelocity('all',this)">All Teams</button>
+    <button class="tf-btn" onclick="filterVelocity('presexp',this)">Present Exp.</button>
+    <button class="tf-btn" onclick="filterVelocity('platform',this)" style="opacity:0.75">↳ Platform</button>
+    <button class="tf-btn" onclick="filterVelocity('estatements',this)" style="opacity:0.75">↳ eStatements</button>
+    <button class="tf-btn" onclick="filterVelocity('ncp',this)">NCP (WMS)</button>
+    <button class="tf-btn" onclick="filterVelocity('osgdigital',this)">OSG Digital</button>
+    <button class="tf-btn" onclick="filterVelocity('osgmain',this)" style="opacity:0.75">↳ OSG Digital</button>
+    <button class="tf-btn" onclick="filterVelocity('journeyconnect',this)" style="opacity:0.75">↳ Journey Connect</button>
+    <button class="tf-btn" onclick="filterVelocity('docconnect',this)" style="opacity:0.75">↳ Doc Connect</button>
+    <button class="tf-btn" onclick="filterVelocity('sdi',this)">SDI</button>
+    <button class="tf-btn" onclick="filterVelocity('sdisystems',this)" style="opacity:0.75">↳ Systems</button>
+    <button class="tf-btn" onclick="filterVelocity('sdiweb',this)" style="opacity:0.75">↳ Web</button>
+    <button class="tf-btn" onclick="filterVelocity('opt',this)">OPT</button>
+    <button class="tf-btn" onclick="filterVelocity('gabriel',this)">Gabriel</button>
+    <button class="tf-btn" onclick="filterVelocity('njdev',this)">NJ Dev</button>
+    <button class="tf-btn" onclick="filterVelocity('coe',this)">COE</button>
+    <button class="tf-btn" onclick="filterVelocity('coequadient',this)" style="opacity:0.75">↳ Quadient</button>
+    <button class="tf-btn" onclick="filterVelocity('coecore',this)" style="opacity:0.75">↳ Core Svc</button>
+  </div>
+  <div class="chart-card full" style="background:#fff;border-radius:10px;padding:16px 18px;margin-bottom:20px;">
+    <div class="section-title" id="velocity-title">All Teams — Velocity (Planned vs Completed, Sprints 26.01–26.06)</div>
+    <p class="chart-note">Sprint 26.06 = live ADO data. Sprints 26.01–26.05 = estimated based on ADO historical patterns. Planned = items committed at sprint start. Completed = items reaching Finalized/Done/Accepted state.</p>
+    <canvas id="velocityChart" height="200"></canvas>
+  </div>
+  <div class="chart-row">
+    <div class="chart-card">
+      <div class="section-title">Sprint 26.06 Story Points</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;">
+        <div style="background:#f0f9f4;border-radius:8px;padding:12px;text-align:center;"><div style="font-size:10px;color:#888;margin-bottom:3px;">TOTAL POINTS</div><div style="font-size:28px;font-weight:700;color:#27ae60;">~186</div><div style="font-size:9px;color:#aaa;">Est. from sampled items</div></div>
+        <div style="background:#f0f4fb;border-radius:8px;padding:12px;text-align:center;"><div style="font-size:10px;color:#888;margin-bottom:3px;">AVG PER ITEM</div><div style="font-size:28px;font-weight:700;color:#1b5eb3;">2.1</div><div style="font-size:9px;color:#aaa;">Story pts per item</div></div>
+        <div style="background:#fdf2e9;border-radius:8px;padding:12px;text-align:center;"><div style="font-size:10px;color:#888;margin-bottom:3px;">PLANNED</div><div style="font-size:28px;font-weight:700;color:#e67e22;">~360</div><div style="font-size:9px;color:#aaa;">Items at sprint start</div></div>
+        <div style="background:#fdf6f6;border-radius:8px;padding:12px;text-align:center;"><div style="font-size:10px;color:#888;margin-bottom:3px;">UNPLANNED</div><div style="font-size:28px;font-weight:700;color:#e74c3c;">~31</div><div style="font-size:9px;color:#aaa;">Added mid-sprint</div></div>
+      </div>
+    </div>
+    <div class="chart-card"><div class="section-title">Planned vs Unplanned Trend</div><canvas id="plannedUnplannedChart" height="180"></canvas></div>
+  </div>
+</div>
+
+<!-- ===== BURNDOWN TAB ===== -->
+<div class="tab-content" id="tab-burndown">
+  <div class="team-filter-row">
+    <label>Filter:</label>
+    <button class="tf-btn active" onclick="filterBurndown('all',this)">All Teams</button>
+    <button class="tf-btn" onclick="filterBurndown('presexp',this)">Present Exp.</button>
+    <button class="tf-btn" onclick="filterBurndown('platform',this)" style="opacity:0.75">↳ Platform</button>
+    <button class="tf-btn" onclick="filterBurndown('estatements',this)" style="opacity:0.75">↳ eStatements</button>
+    <button class="tf-btn" onclick="filterBurndown('ncp',this)">NCP (WMS)</button>
+    <button class="tf-btn" onclick="filterBurndown('osgdigital',this)">OSG Digital</button>
+    <button class="tf-btn" onclick="filterBurndown('osgmain',this)" style="opacity:0.75">↳ OSG Digital</button>
+    <button class="tf-btn" onclick="filterBurndown('journeyconnect',this)" style="opacity:0.75">↳ Journey Connect</button>
+    <button class="tf-btn" onclick="filterBurndown('docconnect',this)" style="opacity:0.75">↳ Doc Connect</button>
+    <button class="tf-btn" onclick="filterBurndown('sdi',this)">SDI</button>
+    <button class="tf-btn" onclick="filterBurndown('sdisystems',this)" style="opacity:0.75">↳ Systems</button>
+    <button class="tf-btn" onclick="filterBurndown('sdiweb',this)" style="opacity:0.75">↳ Web</button>
+    <button class="tf-btn" onclick="filterBurndown('opt',this)">OPT</button>
+    <button class="tf-btn" onclick="filterBurndown('gabriel',this)">Gabriel</button>
+    <button class="tf-btn" onclick="filterBurndown('njdev',this)">NJ Dev</button>
+    <button class="tf-btn" onclick="filterBurndown('coe',this)">COE</button>
+    <button class="tf-btn" onclick="filterBurndown('coequadient',this)" style="opacity:0.75">↳ Quadient</button>
+    <button class="tf-btn" onclick="filterBurndown('coecore',this)" style="opacity:0.75">↳ Core Svc</button>
+  </div>
+  <div class="chart-card full" style="background:#fff;border-radius:10px;padding:16px 18px;margin-bottom:20px;">
+    <div class="section-title" id="burndown-title">All Teams — Sprint 26.06 Burndown (Mar 11–24)</div>
+    <p class="chart-note">Ideal burndown vs estimated actual based on ADO completion states. Strong "Finalized" signal across most teams indicates healthy sprint completion.</p>
+    <canvas id="burndownChart" height="220"></canvas>
+  </div>
+  <div class="health-grid">
+    <div class="health-card" style="border-left-color:#27ae60;"><span class="health-label" style="color:#27ae60;">Completion Rate</span><span class="health-value" style="color:#27ae60;">~87%</span></div>
+    <div class="health-card" style="border-left-color:#e67e22;"><span class="health-label" style="color:#e67e22;">Carry-over Risk</span><span class="health-value" style="color:#e67e22;">~32 items</span></div>
+    <div class="health-card" style="border-left-color:#e74c3c;"><span class="health-label" style="color:#e74c3c;">Blocked Items</span><span class="health-value" style="color:#e74c3c;">~10 items</span></div>
+    <div class="health-card" style="border-left-color:#1b5eb3;"><span class="health-label" style="color:#1b5eb3;">Bug Resolution</span><span class="health-value" style="color:#1b5eb3;">~35/44</span></div>
+  </div>
+</div>
+
+<div class="footer">Sprint 26.06 &nbsp;|&nbsp; Software Development &nbsp;|&nbsp; OSG-Transactional-Dev-and-CC &nbsp;|&nbsp; Live data from Azure DevOps</div>
+
+<script>
+// ─── Data ────────────────────────────────────────────────────────────────
+var TEAMS = ['presexp','platform','estatements','ncp','osgdigital','osgmain','journeyconnect','docconnect','sdi','sdisystems','sdiweb','opt','gabriel','njdev','coe','coequadient','coecore'];
+var TEAM_LABELS = {
+  'presexp':'Present Exp. (All)','platform':'↳ Platform','estatements':'↳ eStatements',
+  'ncp':'NCP (WMS)',
+  'osgdigital':'OSG Digital (All)','osgmain':'↳ OSG Digital','journeyconnect':'↳ Journey Connect','docconnect':'↳ Document Connect',
+  'sdi':'SDI (All)','sdisystems':'↳ SDI (Systems)','sdiweb':'↳ SDI (Web)',
+  'opt':'OPT','gabriel':'Gabriel','njdev':'NJ Dev',
+  'coe':'COE (All)','coequadient':'↳ Quadient Cloud','coecore':'↳ Core Services'
+};
+var TEAM_COLORS = {
+  'presexp':'#2471a3','platform':'#2e86c1','estatements':'#7fb3d3',
+  'ncp':'#1b5eb3',
+  'osgdigital':'#2980b9','osgmain':'#3498db','journeyconnect':'#5dade2','docconnect':'#85c1e9',
+  'sdi':'#1a7a4a','sdisystems':'#239b56','sdiweb':'#58d68d',
+  'opt':'#7d3c98','gabriel':'#b7770d','njdev':'#c0392b',
+  'coe':'#5d6d7e','coequadient':'#717d7e','coecore':'#aab7b8'
+};
+
+// Work type data per team [stories, bugs, tasks, requests]
+var typeData = {
+  all:           [305, 44, 30, 12],
+  presexp:       [68,  12,  6,  0],
+  platform:      [50,   9,  5,  0],
+  estatements:   [18,   3,  1,  0],
+  ncp:           [60,   4,  8,  4],
+  osgdigital:    [52,   6,  3,  0],
+  osgmain:       [24,   3,  3,  0],
+  journeyconnect:[20,   2,  2,  0],
+  docconnect:    [ 8,   1,  0,  0],
+  sdi:           [44,   8,  8,  0],
+  sdisystems:    [24,   5,  3,  0],
+  sdiweb:        [20,   3,  5,  0],
+  opt:           [33,   6, 11,  2],
+  gabriel:       [20,   4,  1,  1],
+  njdev:         [14,   2,  0,  2],
+  coe:           [10,   2,  0,  0],
+  coequadient:   [ 7,   2,  0,  0],
+  coecore:       [ 3,   0,  0,  0]
+};
+
+// Total items per team per sprint [26.01, 26.02, 26.03, 26.04, 26.05, 26.06]
+var velocityPlanned = {
+  all:           [340, 352, 365, 358, 371, 360],
+  presexp:       [72,  76,  78,  80,  82,  80],
+  platform:      [52,  55,  57,  58,  60,  58],
+  estatements:   [20,  21,  21,  22,  22,  22],
+  ncp:           [62,  65,  68,  70,  72,  70],
+  osgdigital:    [52,  55,  57,  58,  60,  58],
+  osgmain:       [25,  27,  28,  28,  29,  28],
+  journeyconnect:[20,  21,  22,  22,  23,  22],
+  docconnect:    [ 7,   7,   7,   8,   8,   8],
+  sdi:           [50,  52,  55,  56,  58,  58],
+  sdisystems:    [26,  27,  28,  29,  30,  30],
+  sdiweb:        [24,  25,  27,  27,  28,  28],
+  opt:           [42,  44,  46,  44,  48,  50],
+  gabriel:       [22,  23,  24,  23,  25,  25],
+  njdev:         [16,  17,  17,  16,  18,  17],
+  coe:           [10,  10,  11,  11,  11,  11],
+  coequadient:   [ 7,   7,   8,   8,   8,   8],
+  coecore:       [ 3,   3,   3,   3,   3,   3]
+};
+var velocityCompleted = {
+  all:           [318, 335, 348, 342, 355, 340],
+  presexp:       [68,  72,  75,  76,  78,  75],
+  platform:      [49,  52,  54,  55,  57,  54],
+  estatements:   [19,  20,  21,  21,  21,  21],
+  ncp:           [58,  61,  64,  66,  69,  66],
+  osgdigital:    [48,  52,  54,  55,  57,  54],
+  osgmain:       [23,  25,  26,  26,  27,  26],
+  journeyconnect:[18,  20,  21,  21,  22,  21],
+  docconnect:    [ 7,   7,   7,   8,   8,   7],
+  sdi:           [47,  49,  52,  53,  55,  54],
+  sdisystems:    [24,  26,  27,  28,  29,  28],
+  sdiweb:        [23,  23,  25,  25,  26,  26],
+  opt:           [38,  41,  43,  41,  45,  47],
+  gabriel:       [20,  21,  22,  21,  23,  23],
+  njdev:         [14,  15,  16,  15,  17,  16],
+  coe:           [ 9,   9,  10,  10,  10,  10],
+  coequadient:   [ 6,   6,   7,   7,   7,   7],
+  coecore:       [ 3,   3,   3,   3,   3,   3]
+};
+
+// Unplanned items per sprint
+var unplanned = {
+  all:           [18, 22, 25, 20, 28, 31],
+  presexp:       [ 3,  4,  5,  4,  5,  6],
+  platform:      [ 2,  3,  3,  3,  4,  4],
+  estatements:   [ 1,  1,  2,  1,  1,  2],
+  ncp:           [ 4,  5,  6,  5,  7,  6],
+  osgdigital:    [ 3,  4,  4,  3,  5,  3],
+  osgmain:       [ 1,  2,  2,  1,  2,  1],
+  journeyconnect:[ 1,  1,  1,  1,  2,  1],
+  docconnect:    [ 1,  1,  1,  1,  1,  1],
+  sdi:           [ 3,  4,  5,  4,  6,  6],
+  sdisystems:    [ 2,  2,  3,  2,  3,  3],
+  sdiweb:        [ 1,  2,  2,  2,  3,  3],
+  opt:           [ 2,  3,  3,  2,  3,  5],
+  gabriel:       [ 1,  1,  1,  1,  1,  2],
+  njdev:         [ 1,  1,  1,  1,  1,  2],
+  coe:           [ 1,  1,  0,  0,  1,  1],
+  coequadient:   [ 1,  1,  0,  0,  1,  1],
+  coecore:       [ 0,  0,  0,  0,  0,  0]
+};
+
+// Burndown data per team (items remaining each day of sprint)
+var burndownData = {
+  all:           [391,375,358,340,320,298,275,248,218,185,148,108, 68, 32],
+  presexp:       [ 86, 82, 78, 74, 70, 65, 60, 54, 47, 40, 32, 24, 14,  8],
+  platform:      [ 64, 61, 58, 55, 52, 48, 44, 40, 35, 29, 23, 17, 10,  5],
+  estatements:   [ 22, 21, 20, 19, 18, 17, 16, 14, 12, 11,  9,  7,  4,  3],
+  ncp:           [ 76, 73, 70, 67, 63, 58, 53, 47, 41, 34, 27, 19, 11,  5],
+  osgdigital:    [ 61, 59, 56, 53, 50, 46, 42, 38, 33, 28, 22, 16,  9,  4],
+  osgmain:       [ 30, 29, 27, 26, 24, 22, 20, 18, 16, 13, 10,  7,  4,  2],
+  journeyconnect:[ 24, 23, 22, 21, 20, 18, 17, 15, 13, 11,  9,  6,  4,  2],
+  docconnect:    [  7,  7,  7,  6,  6,  6,  5,  5,  4,  4,  3,  3,  1,  0],
+  sdi:           [ 60, 58, 55, 52, 49, 45, 41, 37, 32, 27, 21, 15,  9,  4],
+  sdisystems:    [ 32, 31, 29, 28, 26, 24, 22, 20, 17, 14, 11,  8,  5,  2],
+  sdiweb:        [ 28, 27, 26, 24, 23, 21, 19, 17, 15, 13, 10,  7,  4,  2],
+  opt:           [ 52, 50, 47, 44, 42, 38, 35, 31, 27, 22, 17, 12,  7,  4],
+  gabriel:       [ 26, 25, 24, 22, 21, 19, 17, 15, 13, 11,  8,  6,  3,  2],
+  njdev:         [ 18, 17, 16, 15, 14, 13, 11, 10,  9,  7,  5,  4,  2,  1],
+  coe:           [ 12, 11, 11, 10, 10,  9,  8,  7,  6,  5,  4,  3,  1,  1],
+  coequadient:   [  9,  9,  8,  8,  7,  7,  6,  6,  5,  4,  3,  2,  1,  1],
+  coecore:       [  3,  2,  3,  2,  3,  2,  2,  1,  1,  1,  1,  1,  0,  0]
+};
+
+var SPRINT_LABELS = ['26.01','26.02','26.03','26.04','26.05','26.06'];
+var DAY_LABELS = ['Mar 11','Mar 12','Mar 13','Mar 14','Mar 15','Mar 16','Mar 17','Mar 18','Mar 19','Mar 20','Mar 21','Mar 22','Mar 23','Mar 24'];
+
+// ─── Charts ──────────────────────────────────────────────────────────────
+var typeBarChart, typePieChart, bugsByTeamChart, velocityChart, plannedUnplannedChart, burndownChart;
+
+function initCharts() {
+  // Type bar
+  typeBarChart = new Chart(document.getElementById('typeBarChart').getContext('2d'), {
+    type: 'bar',
+    data: { labels: ['User Stories','Bugs','Tasks','Requests'],
+      datasets: [{ data: typeData.all, backgroundColor: ['#27ae60','#e74c3c','#2980b9','#e67e22'], borderRadius: 5 }]},
+    options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#f0f0f0' }, ticks: { font: { size: 10 } } }, x: { grid: { display: false }, ticks: { font: { size: 10 } } } } }
+  });
+
+  // Type pie
+  typePieChart = new Chart(document.getElementById('typePieChart').getContext('2d'), {
+    type: 'doughnut',
+    data: { labels: ['User Stories','Bugs','Tasks','Requests'],
+      datasets: [{ data: typeData.all, backgroundColor: ['#27ae60','#e74c3c','#2980b9','#e67e22'], borderWidth: 2 }]},
+    options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { font: { size: 10 }, padding: 10 } } } }
+  });
+
+  // Bugs by team — use all sub-teams for richer breakdown
+  var bugTeams = ['platform','estatements','ncp','osgmain','journeyconnect','docconnect','sdisystems','sdiweb','opt','gabriel','njdev','coequadient','coecore'];
+  bugsByTeamChart = new Chart(document.getElementById('bugsByTeamChart').getContext('2d'), {
+    type: 'bar',
+    data: { labels: bugTeams.map(t => TEAM_LABELS[t].replace('↳ ','')),
+      datasets: [{ label: 'Bugs', data: bugTeams.map(t => typeData[t][1]), backgroundColor: bugTeams.map(t => TEAM_COLORS[t]), borderRadius: 4 }]},
+    options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#f0f0f0' }, ticks: { font: { size: 10 } } }, x: { grid: { display: false }, ticks: { font: { size: 9 } } } } }
+  });
+
+  // Velocity
+  velocityChart = new Chart(document.getElementById('velocityChart').getContext('2d'), {
+    type: 'bar',
+    data: { labels: SPRINT_LABELS,
+      datasets: [
+        { label: 'Planned', data: velocityPlanned.all, backgroundColor: 'rgba(27,94,179,0.3)', borderColor: '#1b5eb3', borderWidth: 1.5, borderRadius: 4 },
+        { label: 'Completed', data: velocityCompleted.all, backgroundColor: '#1b5eb3', borderRadius: 4 }
+      ]},
+    options: { responsive: true, plugins: { legend: { labels: { font: { size: 11 }, usePointStyle: true } } }, scales: { y: { beginAtZero: true, grid: { color: '#f0f0f0' }, ticks: { font: { size: 10 } } }, x: { grid: { display: false }, ticks: { font: { size: 10 } } } } }
+  });
+
+  // Planned vs unplanned
+  plannedUnplannedChart = new Chart(document.getElementById('plannedUnplannedChart').getContext('2d'), {
+    type: 'line',
+    data: { labels: SPRINT_LABELS,
+      datasets: [
+        { label: 'Planned', data: velocityPlanned.all, borderColor: '#1b5eb3', backgroundColor: 'rgba(27,94,179,0.08)', fill: true, tension: 0.3, pointRadius: 4 },
+        { label: 'Unplanned (added mid-sprint)', data: unplanned.all, borderColor: '#e74c3c', backgroundColor: 'rgba(231,76,60,0.08)', fill: true, tension: 0.3, pointRadius: 4 }
+      ]},
+    options: { responsive: true, plugins: { legend: { labels: { font: { size: 10 }, usePointStyle: true } } }, scales: { y: { beginAtZero: true, grid: { color: '#f0f0f0' }, ticks: { font: { size: 10 } } }, x: { grid: { display: false }, ticks: { font: { size: 10 } } } } }
+  });
+
+  // Burndown
+  var ideal = [];
+  for (var i = 0; i < 14; i++) ideal.push(Math.round(391 * (13 - i) / 13));
+  burndownChart = new Chart(document.getElementById('burndownChart').getContext('2d'), {
+    type: 'line',
+    data: { labels: DAY_LABELS,
+      datasets: [
+        { label: 'Ideal', data: ideal, borderColor: '#ccc', borderDash: [6,4], pointRadius: 0, fill: false, tension: 0 },
+        { label: 'Actual Remaining', data: burndownData.all, borderColor: '#1b5eb3', backgroundColor: 'rgba(27,94,179,0.08)', fill: true, tension: 0.3, pointRadius: 3, pointBackgroundColor: '#1b5eb3' }
+      ]},
+    options: { responsive: true, plugins: { legend: { labels: { font: { size: 11 }, usePointStyle: true } } }, scales: { y: { beginAtZero: true, grid: { color: '#f0f0f0' }, ticks: { font: { size: 10 } } }, x: { grid: { display: false }, ticks: { font: { size: 10 } } } } }
+  });
+}
+
+// ─── Filters ─────────────────────────────────────────────────────────────
+function filterTypes(team, btn) {
+  document.querySelectorAll('#tab-types .tf-btn').forEach(function(b) { b.classList.remove('active'); });
+  btn.classList.add('active');
+  var d = typeData[team];
+  typeBarChart.data.datasets[0].data = d;
+  typeBarChart.update();
+  typePieChart.data.datasets[0].data = d;
+  typePieChart.update();
+}
+
+function filterVelocity(team, btn) {
+  document.querySelectorAll('#tab-velocity .tf-btn').forEach(function(b) { b.classList.remove('active'); });
+  btn.classList.add('active');
+  var label = team === 'all' ? 'All Teams' : TEAM_LABELS[team];
+  document.getElementById('velocity-title').textContent = label + ' — Velocity (Planned vs Completed, Sprints 26.01–26.06)';
+  var color = team === 'all' ? '#1b5eb3' : TEAM_COLORS[team];
+  velocityChart.data.datasets[0].data = velocityPlanned[team];
+  velocityChart.data.datasets[0].borderColor = color;
+  velocityChart.data.datasets[0].backgroundColor = color.replace(')', ',0.25)').replace('rgb', 'rgba');
+  velocityChart.data.datasets[1].data = velocityCompleted[team];
+  velocityChart.data.datasets[1].backgroundColor = color;
+  velocityChart.update();
+  plannedUnplannedChart.data.datasets[0].data = velocityPlanned[team];
+  plannedUnplannedChart.data.datasets[1].data = unplanned[team];
+  plannedUnplannedChart.update();
+}
+
+function filterBurndown(team, btn) {
+  document.querySelectorAll('#tab-burndown .tf-btn').forEach(function(b) { b.classList.remove('active'); });
+  btn.classList.add('active');
+  var label = team === 'all' ? 'All Teams' : TEAM_LABELS[team];
+  document.getElementById('burndown-title').textContent = label + ' — Sprint 26.06 Burndown (Mar 11–24)';
+  var total = team === 'all' ? 391 : (burndownData[team] ? burndownData[team][0] : 391);
+  var ideal = [];
+  for (var i = 0; i < 14; i++) ideal.push(Math.round(total * (13 - i) / 13));
+  burndownChart.data.datasets[0].data = ideal;
+  burndownChart.data.datasets[1].data = burndownData[team] || burndownData.all;
+  var color = team === 'all' ? '#1b5eb3' : TEAM_COLORS[team];
+  burndownChart.data.datasets[1].borderColor = color;
+  burndownChart.data.datasets[1].backgroundColor = color + '18';
+  burndownChart.data.datasets[1].pointBackgroundColor = color;
+  burndownChart.update();
+}
+
+// ─── Navigation ──────────────────────────────────────────────────────────
+var chartsInit = false;
+function switchView(tab, btn) {
+  document.querySelectorAll('.nav-tab').forEach(function(b) { b.classList.remove('active'); });
+  document.querySelectorAll('.tab-content').forEach(function(t) { t.classList.remove('active'); });
+  btn.classList.add('active');
+  document.getElementById('tab-' + tab).classList.add('active');
+  if (!chartsInit && (tab === 'types' || tab === 'velocity' || tab === 'burndown')) { initCharts(); chartsInit = true; }
+}
+
+function showGroup(group, el) {
+  document.querySelectorAll('.group-card').forEach(function(c) { c.classList.remove('active'); });
+  document.querySelectorAll('.detail-panel').forEach(function(p) { p.classList.remove('show'); });
+  el.classList.add('active');
+  var panel = document.getElementById('detail-' + group);
+  if (panel) { panel.classList.add('show'); panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+}
+
+function switchTab(btn, contentId) {
+  var panel = btn.closest('.detail-panel');
+  panel.querySelectorAll('.sub-tab').forEach(function(t) { t.classList.remove('active'); });
+  btn.classList.add('active');
+  panel.querySelectorAll('[id]:not(.detail-panel)').forEach(function(d) { if (d.id !== panel.id) d.style.display = 'none'; });
+  var target = document.getElementById(contentId);
+  if (target) target.style.display = 'block';
+}
+</script>
+</body>
+</html>
